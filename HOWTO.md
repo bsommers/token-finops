@@ -5,6 +5,7 @@
 - [Install the command](#install-the-command)
 - [Invoke /token-ops](#invoke-token-ops)
 - [Read the forecast table](#read-the-forecast-table)
+- [Read the recalibration line](#read-the-recalibration-line)
 - [Read the BUDGET STATS header](#read-the-budget-stats-header)
 - [Respond to a WARNING](#respond-to-a-warning)
 - [Start a new task mid-session](#start-a-new-task-mid-session)
@@ -59,12 +60,28 @@ Before touching any files, Claude replies with a table like:
 | File read cost | ~3,200 tokens | src/middleware/rateLimit.ts (140 lines), src/routes/upload.ts (90 lines), tests/upload.test.ts (110 lines) |
 | Reasoning/thinking budget | ~8,000 tokens | moderate complexity — new middleware + tests |
 | Output generation | ~6,000 tokens | new middleware file, route wiring, test file |
-| **Total allocated task budget** | **~42,200 tokens** | |
+| **Total allocated task budget (Y0)** | **~42,200 tokens** | |
 
-Allocated budget: ~42,200 tokens.
+Allocated budget (Y0): ~42,200 tokens.
 ```
 
-Check that the named files actually match what you expect the task to touch. If they don't, that's a signal Claude has misunderstood scope — better to correct it here than after work has started.
+Check that the named files actually match what you expect the task to touch. If they don't, that's a signal Claude has misunderstood scope — better to correct it here than after work has started. Treat this number as provisional — it's a pre-discovery guess, refined next in Phase 1.5 once real scoping has happened.
+
+---
+
+## Read the recalibration line
+
+If any planning or discovery happens before the first file gets written — you ran a GSD planning phase, a gstack plan-review skill, or Claude just read a few files to understand the existing pattern — Claude recalibrates the forecast once, right before that first `Write`/`Edit`, and reports it as a single delta line rather than a new table:
+
+```
+[RECALIBRATED BUDGET: Y0 → Y1 (Δ+21%) | basis: 4 files confirmed via Read/Grep (was 3 estimated)]
+```
+
+This works whether or not you're using a planning framework — see [FORECASTING.md](FORECASTING.md#worked-examples) for the mechanics with GSD, with gstack, and with neither. From this point on, `Y1` (not `Y0`) is the `Allocated` value in every `BUDGET STATS` line.
+
+If the task was simple enough that no scoping happened before the first edit, you won't see this line at all — `Y0` just carries forward unchanged, silently. That's expected, not a bug.
+
+If a recalibration delta comes back surprisingly large (say, +75% or more), that's worth pausing on — it usually means the task was significantly under-scoped in the original description, and it may be worth confirming plan/scope with the user before continuing rather than trusting the new number blindly.
 
 ---
 
@@ -114,7 +131,7 @@ Prefer `/compact` for tasks you want to keep going on with as much prior context
 
 ## Start a new task mid-session
 
-If you give Claude a new, unrelated task after finishing (or abandoning) the current one, it treats it as a fresh Phase 1: `X` resets to zero and `Y` is recomputed from a new forecast for the new task. The old allocation isn't carried forward or blended in. If you want a fresh forecast without waiting for Claude to infer the task changed, just invoke `/token-ops <new task>` again explicitly.
+If you give Claude a new, unrelated task after finishing (or abandoning) the current one, it treats it as a fresh Phase 1: `X` resets to zero and `Y0` is recomputed from a new forecast for the new task, with Phase 1.5 running again once that new task's planning is done. The old allocation isn't carried forward or blended in. If you want a fresh forecast without waiting for Claude to infer the task changed, just invoke `/token-ops <new task>` again explicitly.
 
 ---
 

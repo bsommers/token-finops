@@ -14,14 +14,17 @@ Long Claude Code sessions accumulate context silently: every file read, tool res
 
 1. **Make token usage visible per-turn** — a running estimate the user can see without asking, so budget drift is caught early rather than discovered as degraded behavior.
 2. **Force a scoping step before work starts** — naming expected files and estimating cost is itself a forcing function for thinking through task scope, independent of the budget number's precision.
-3. **Guarantee a resumable checkpoint before exhaustion** — the warning gate's scratchpad summary means a `/clear` never loses unrecoverable state.
-4. **Stay lightweight** — a single Markdown command file, no dependencies, no setup beyond copying one file.
+3. **Correct the initial guess with real information before build spend begins** — the pre-scoping forecast is necessarily rough; recalibrating it once planning/discovery has happened, and before the first line of code is written, catches a bad initial estimate at the cheapest possible point.
+4. **Do that recalibration the same way regardless of tooling** — whether planning came from a structured workflow package (GSD, gstack, or similar) or from nothing more than Claude reading a few files, the correction mechanism is identical and never blocks on a specific package being installed.
+5. **Guarantee a resumable checkpoint before exhaustion** — the warning gate's scratchpad summary means a `/clear` never loses unrecoverable state.
+6. **Stay lightweight** — a single Markdown command file, no dependencies, no setup beyond copying one file.
 
 ## Non-Goals
 
 - **Not exact token accounting** — Claude Code doesn't expose real-time token counts to Claude mid-session, so this protocol is explicitly heuristic. It optimizes for early warning, not audit-grade precision. Anyone needing exact numbers should use Claude Code's own `/cost` or session-level usage reporting, not this command's self-estimates.
 - **Not automatic compaction** — the command prompts the user to run `/compact` or `/clear`; it deliberately does not invoke them automatically, since that decision (and the judgment about what's safe to drop) belongs to the user.
 - **Not a multi-task session ledger** — each `/token-ops` invocation scopes to one task. It does not attempt to track cumulative usage across every task in a long-running session.
+- **Not tied to any specific planning workflow** — recalibration reads whatever planning signal exists (a GSD `PLAN.md`, a gstack plan-review output, a task list, or just prior file reads) but never requires one. It deliberately does not hard-code support for a particular package's plan format.
 - **Not a cost/billing tool** — this is about context-window health during a session, not dollar-cost tracking or API billing reconciliation.
 
 ---

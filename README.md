@@ -25,6 +25,7 @@ Claude responds with a forecast table, then opens every subsequent turn with a `
 ## What It Does
 
 - **Forces a forecast before work starts** — Claude must name the files it expects to touch and estimate baseline, file-read, reasoning, and output costs before running a single tool call.
+- **Recalibrates once real scoping exists** — after planning/discovery and before the first edit, the forecast is redone with actual file counts and complexity instead of guesses. Works with a formal plan (GSD, gstack, etc.) or with nothing more than Claude's own file reads — see [FORECASTING.md](FORECASTING.md).
 - **Tracks utilization every turn** — a one-line `BUDGET STATS` header reports used-vs-allocated tokens and overall context depth, so drift is visible turn over turn instead of discovered after the fact.
 - **Warns at 70% utilization** — crossing the threshold pauses new work, writes a state summary to a scratch file, and prompts you to `/compact` or `/clear` before continuing.
 - **Rescopes cleanly on new tasks** — a new task mid-session resets the forecast rather than silently inheriting the old budget.
@@ -34,24 +35,27 @@ Claude responds with a forecast table, then opens every subsequent turn with a `
 ## Architecture Overview
 
 ```
-          ┌───────────────────────────────────────────────────┐
-          │                    Claude Code                    │
-          │                                                   │
-  /token-ops │  ┌──────────────┐        ┌──────────────────┐ │
- ──────────►│  │   Phase 1     │───────►│     Phase 2       │ │
-  <task>     │  │   Forecast    │        │   Per-turn        │ │
-          │  │  (before any   │        │   BUDGET STATS     │ │
-          │  │  tool calls)   │        │   header + 70%      │ │
-          │  └──────────────┘        │   WARNING gate      │ │
-          │                           └─────────┬──────────┘ │
-          └─────────────────────────────────────┼────────────┘
-                                                  │ WARNING
-                                                  ▼
-                                   ╔══════════════════════════╗
-                                   ║  scratchpad summary file  ║
-                                   ║  + prompt: /compact       ║
-                                   ║           or /clear       ║
-                                   ╚══════════════════════════╝
+  /token-ops <task>
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                              Claude Code                               │
+│                                                                         │
+│  ┌─────────────┐      ┌──────────────────┐      ┌────────────────┐    │
+│  │   Phase 1    │─────►│    Phase 1.5      │─────►│    Phase 2      │    │
+│  │   Forecast   │      │   Recalibration   │      │   Per-turn      │    │
+│  │ (pre-scoping,│      │  (post-scoping,   │      │  BUDGET STATS   │    │
+│  │  guessed Y0) │      │  pre-build, Y1)   │      │  + 70% WARNING  │    │
+│  └─────────────┘      └──────────────────┘      └────────┬────────┘    │
+│                                                            │             │
+└────────────────────────────────────────────────────────────┼─────────────┘
+                                                              │ WARNING
+                                                              ▼
+                                               ╔══════════════════════════╗
+                                               ║  scratchpad summary file  ║
+                                               ║  + prompt: /compact       ║
+                                               ║           or /clear       ║
+                                               ╚══════════════════════════╝
 ```
 
 ---
@@ -65,6 +69,7 @@ token-finops/
 ├── README.md             — this file
 ├── ARCHITECTURE.md       — protocol design, state model, diagrams
 ├── PURPOSE.md            — why this exists, goals, non-goals
+├── FORECASTING.md        — how the budget numbers are calculated and recalibrated
 ├── HOWTO.md              — task-oriented usage guide
 └── .gitignore            — excludes local, machine-specific Claude Code settings
 ```
@@ -83,7 +88,8 @@ None. The command takes its only input as free-text arguments after `/token-ops`
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](ARCHITECTURE.md) | The two-phase protocol, BUDGET STATS field semantics, warning-gate state machine |
+| [Architecture](ARCHITECTURE.md) | The three-phase protocol, BUDGET STATS field semantics, warning-gate state machine |
+| [Forecasting Methodology](FORECASTING.md) | How the baseline, file-read, thinking, and output estimates are calculated, and how Phase 1.5 recalibrates them once real planning info exists — with or without GSD/gstack |
 | [Purpose](PURPOSE.md) | The problem this solves, goals, non-goals, trade-offs |
 | [How-To Guide](HOWTO.md) | Install, invoke, read the output, tune the threshold, debug |
 
