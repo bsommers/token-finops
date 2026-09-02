@@ -2,7 +2,7 @@
 
 > **Status: draft, pending refinement.** This is a *pre-execution* cost estimator for agentic security-scan workloads (e.g. Claude Security-style multi-stage scans: indexing → call-graph traversal → dynamic tool calls → patch generation) — not the same thing as `/token-ops`. `/token-ops` forecasts and monitors a **live coding session's** token budget turn by turn; this estimator predicts the **dollar cost of a scan job before it runs**, from static inputs (lines of code, scan depth) alone, so it can gate whether the job runs at all. See [FORECASTING.md](FORECASTING.md) for the session-monitoring methodology this complements.
 
-Open items below are intentionally left as TODOs — this doc captures the model as received, to be tuned once those are resolved. **See also**: [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) maps this model onto the real Claude Security public beta (managed product + Claude Code plugin), and [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md) covers a local, offline indexer ([`scripts/index_repo.py`](scripts/index_repo.py)) that feeds real LOC/directory data into the estimator below instead of a guessed total.
+Open items below are intentionally left as TODOs — this doc captures the model as received, to be tuned once those are resolved. **See also**: [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) maps this model onto the real Claude Security public beta (managed product + Claude Code plugin), and [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md) covers a local, offline indexer ([`scripts/index_repo.py`](../scripts/index_repo.py)) that feeds real LOC/directory data into the estimator below instead of a guessed total.
 
 ---
 
@@ -44,13 +44,13 @@ Agent step volume determines prompt-cache read volume:
 
 ## Config / Rate Card
 
-Machine-readable schema: [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json).
+Machine-readable schema: [`schemas/claude_security_pre_run_estimator.json`](../schemas/claude_security_pre_run_estimator.json).
 
 > ⚠️ **Rate card is partially verified.** `claude-mythos-5.1` does correspond to a real model — Anthropic's docs confirm the *managed* Claude Security product (`claude.ai/security`, Enterprise-only) scans exclusively on **Claude Mythos 5**; the `.1` and the exact per-token rates here are still unconfirmed against live pricing. `claude-opus-4.7` doesn't match any current model ID and doesn't really apply here: the separate **Claude Security plugin for Claude Code** (`/claude-security` command) uses whichever model(s) you already have access to in your Claude Code account, not a fixed scan model — see [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) for the full managed-vs-plugin breakdown, including confirmed billing behavior for each.
 
 ## Executable Estimator
 
-Reference implementation: [`scripts/estimate_claude_security_cost.py`](scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc, profile, model, is_batch)`, returns estimated total USD plus a cost and token-volume breakdown. Rather than guessing `loc`, feed it a real count from [`scripts/index_repo.py`](scripts/index_repo.py), or run the two chained via [`scripts/prerun_estimate.py`](scripts/prerun_estimate.py) for a one-shot table across all three profiles — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md).
+Reference implementation: [`scripts/estimate_claude_security_cost.py`](../scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc, profile, model, is_batch)`, returns estimated total USD plus a cost and token-volume breakdown. Rather than guessing `loc`, feed it a real count from [`scripts/index_repo.py`](../scripts/index_repo.py), or run the two chained via [`scripts/prerun_estimate.py`](../scripts/prerun_estimate.py) for a one-shot table across all three profiles — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md).
 
 ## Guardrails to Implement Before a Scan Runs
 

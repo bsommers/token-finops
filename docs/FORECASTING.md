@@ -1,6 +1,6 @@
 # Forecasting Methodology
 
-This document explains *how* the numbers in a `/token-ops` forecast are calculated — where each line item comes from, why the defaults are what they are, and how the forecast gets sharper once real planning information exists. The command file ([`commands/token-ops.md`](commands/token-ops.md)) is the operative contract Claude follows; this doc is the reference for the reasoning behind it.
+This document explains *how* the numbers in a `/token-ops` forecast are calculated — where each line item comes from, why the defaults are what they are, and how the forecast gets sharper once real planning information exists. The command file ([`commands/token-ops.md`](../commands/token-ops.md)) is the operative contract Claude follows; this doc is the reference for the reasoning behind it.
 
 Claude Code has no API that exposes Claude's own exact token consumption mid-session. Every number here is therefore a **heuristic estimate from observable signals** (line counts, character counts, task complexity), not an instrumented measurement. The goal of the methodology is to be directionally reliable and consistently biased toward overestimating — not to be exact. See [PURPOSE.md](PURPOSE.md) for why exactness is explicitly a non-goal.
 

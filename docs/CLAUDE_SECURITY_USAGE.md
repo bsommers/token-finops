@@ -56,13 +56,13 @@ Worked example, run against this repo itself:
 
 ```
 $ python3 scripts/prerun_estimate.py --budget-usd 5
-Indexed 9 files (1 excluded) via git ls-files under scope '.': 1,030 LOC
+Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,488 LOC
 
 | Profile | Steps | Est. total tokens | Est. cost (USD) | Fits budget? |
 |---|---|---|---|---|
-| pr_quick_scan | 10 | 114,209 | $1.70 | ✅ |
-| standard_taint_audit | 150 | 3,008,993 | $37.91 | ❌ |
-| deep_exploit_hunt | 500 | 17,105,899 | $225.94 | ❌ |
+| pr_quick_scan | 10 | 124,085 | $1.83 | ✅ |
+| standard_taint_audit | 150 | 3,213,090 | $38.09 | ❌ |
+| deep_exploit_hunt | 500 | 18,264,639 | $226.36 | ❌ |
 ```
 
 ### Rough correspondence to the plugin's own jobs
@@ -87,6 +87,6 @@ For the managed product, billing is a separate, direct-token-cost line item — 
 
 ## What's still unverified
 
-- **Rate card and model IDs** in [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json): `claude-mythos-5.1` maps to a real model (Claude Mythos 5, confirmed as the managed product's scan model above), but the `.1` and the exact per-token rates aren't confirmed against live pricing. `claude-opus-4.7` doesn't match this account's current model lineup — the plugin doesn't use a fixed model at all, it uses whatever's available in your Claude Code account, so a fixed rate card doesn't really apply to plugin runs; use your account's normal per-token rates instead.
+- **Rate card and model IDs** in [`schemas/claude_security_pre_run_estimator.json`](../schemas/claude_security_pre_run_estimator.json): `claude-mythos-5.1` maps to a real model (Claude Mythos 5, confirmed as the managed product's scan model above), but the `.1` and the exact per-token rates aren't confirmed against live pricing. `claude-opus-4.7` doesn't match this account's current model lineup — the plugin doesn't use a fixed model at all, it uses whatever's available in your Claude Code account, so a fixed rate card doesn't really apply to plugin runs; use your account's normal per-token rates instead.
 - **Actual step counts / token volumes for a real scan** — nothing published gives real numbers here; the $\mu_{\text{steps}}$ multipliers in `SECURITY_SCAN_ESTIMATOR.md` are a generic agentic-scan model, not measured from an actual `/claude-security` run. Worth validating against `/workflows` output or `/cost` during a real scan.
 - The plugin's own file-count-based sizing already accounts for things this estimator can't see (e.g. how "focused" a chosen area actually is) — treat `prerun_estimate.py`'s numbers as a budget sanity check, not a substitute for what the plugin reports at its own confirm step.

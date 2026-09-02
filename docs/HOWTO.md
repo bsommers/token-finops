@@ -10,6 +10,7 @@
 - [Respond to a WARNING](#respond-to-a-warning)
 - [Start a new task mid-session](#start-a-new-task-mid-session)
 - [Update the command](#update-the-command)
+- [Get a pre-run cost estimate for a Claude Security scan (draft)](#get-a-pre-run-cost-estimate-for-a-claude-security-scan-draft)
 - [Debug common problems](#debug-common-problems)
 
 ---
@@ -155,6 +156,37 @@ git push
 
 ---
 
+## Get a pre-run cost estimate for a Claude Security scan (draft)
+
+This is a separate, explicitly draft capability — unrelated to `/token-ops` itself and not invoked as a Claude Code command. See [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md), [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md), and [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) for the full picture.
+
+**Prerequisites**: `python3` 3.9+, no packages to install.
+
+```bash
+# 1. Index the repo (or a subdirectory) locally — offline, no network calls
+python3 scripts/index_repo.py --scope path/to/area   # omit --scope for the whole repo
+
+# 2. Get a cost table across scan-depth profiles, with a budget check
+python3 scripts/prerun_estimate.py --scope path/to/area --budget-usd 25
+```
+
+**Example**, run against this repo itself:
+
+```
+$ python3 scripts/prerun_estimate.py --budget-usd 5
+Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,488 LOC
+
+| Profile | Steps | Est. total tokens | Est. cost (USD) | Fits budget? |
+|---|---|---|---|---|
+| pr_quick_scan | 10 | 124,085 | $1.83 | ✅ |
+| standard_taint_audit | 150 | 3,213,090 | $38.09 | ❌ |
+| deep_exploit_hunt | 500 | 18,264,639 | $226.36 | ❌ |
+```
+
+If the total LOC exceeds 500,000, `prerun_estimate.py` prints a warning naming the largest top-level directory — scope the scan to a subfolder with `--scope` rather than the whole repo. Add `--batch` to apply the batch-API discount from the rate card, or `--model claude-opus-4.7` to use the alternate rate card entry.
+
+---
+
 ## Debug common problems
 
 ### `/token-ops` doesn't appear in `/help`
@@ -180,3 +212,8 @@ diff ~/.claude/commands/token-ops.md token-finops/commands/token-ops.md  # shoul
 
 **Cause**: This is a self-reported heuristic estimate, not an instrumented count (see [ARCHITECTURE.md](ARCHITECTURE.md#known-limitations)) — it can drift.
 **Fix**: Treat the absolute numbers as approximate; what matters is the trend and whether `Status` flips to `WARNING` at a reasonable point. If it's consistently far off, that's a signal to manually `/compact` earlier rather than waiting for the gate.
+
+### `index_repo.py`'s LOC total looks lower than expected
+
+**Cause**: `count_lines()` silently excludes any file it can't decode as UTF-8 text (binary files, non-UTF-8 encodings) — those get counted under `files_excluded`, not `total_loc`. Extensions outside `SOURCE_EXTENSIONS` (in `scripts/index_repo.py`) are excluded the same way.
+**Fix**: Check the `files_excluded` count and the `by_extension` breakdown in the JSON output; if a language you expect is missing from `SOURCE_EXTENSIONS`, add its extension to that set.

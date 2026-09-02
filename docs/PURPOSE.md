@@ -25,7 +25,7 @@ Long Claude Code sessions accumulate context silently: every file read, tool res
 - **Not automatic compaction** — the command prompts the user to run `/compact` or `/clear`; it deliberately does not invoke them automatically, since that decision (and the judgment about what's safe to drop) belongs to the user.
 - **Not a multi-task session ledger** — each `/token-ops` invocation scopes to one task. It does not attempt to track cumulative usage across every task in a long-running session.
 - **Not tied to any specific planning workflow** — recalibration reads whatever planning signal exists (a GSD `PLAN.md`, a gstack plan-review output, a task list, or just prior file reads) but never requires one. It deliberately does not hard-code support for a particular package's plan format.
-- **Not a cost/billing tool** — this is about context-window health during a session, not dollar-cost tracking or API billing reconciliation.
+- **Not a cost/billing tool** — this is about context-window health during a session, not dollar-cost tracking or API billing reconciliation. (This repo separately holds a draft, explicitly-out-of-scope-for-`/token-ops` companion that *is* a dollar-cost tool — a pre-run estimator for Claude Security scan workloads, not for `/token-ops` itself. See [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md).)
 
 ---
 

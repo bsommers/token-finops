@@ -84,7 +84,23 @@ token-ops.md
 └── Phase 2: Monitor      — per-turn header format + 70% warning gate
 ```
 
-This is the only component. There is no separate parser, renderer, or state store — Claude executes the instructions directly as part of normal turn generation.
+This is `/token-ops`'s only component. There is no separate parser, renderer, or state store — Claude executes the instructions directly as part of normal turn generation.
+
+### The security-scan estimator toolchain — `scripts/`, `schemas/` (draft, secondary)
+
+**Location**: `scripts/index_repo.py`, `scripts/estimate_claude_security_cost.py`, `scripts/prerun_estimate.py`, `schemas/claude_security_pre_run_estimator.json`
+**Responsibility**: A separate, explicitly draft capability — not part of `/token-ops` itself — that estimates the dollar cost of a Claude Security scan *before* it runs, from a repo's line count and a chosen scan-depth profile. See [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md), [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md), and [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md).
+**Interfaces**: Invoked directly as CLI scripts (`python3 scripts/prerun_estimate.py [--scope PATH] [--budget-usd N]`), not as a Claude Code command.
+**Dependencies**: Python 3.9+, standard library only. No network calls, no model calls — `index_repo.py` reads the filesystem (via `git ls-files` when available) and `estimate_claude_security_cost.py` is a pure function over the JSON rate card.
+
+```
+scripts/
+├── index_repo.py                     — offline LOC/directory indexer (git ls-files aware)
+├── estimate_claude_security_cost.py  — pure cost-estimation function
+└── prerun_estimate.py                — CLI: chains the two, prints a per-profile cost table
+```
+
+Unlike the command file above, this toolchain has no conversational state — each invocation is a stateless, one-shot CLI call whose only output is stdout (or a `--out` file from `index_repo.py`).
 
 ---
 
@@ -237,8 +253,9 @@ The one artifact that *is* written to disk is the warning-gate summary file, pla
 | Dependency | Type | Purpose |
 |------------|------|---------|
 | Claude Code | CLI/runtime | Loads `~/.claude/commands/*.md` and executes `/command` invocations; provides the scratchpad directory the warning gate writes to |
+| Python 3.9+ | Language runtime | Runs the draft estimator toolchain (`scripts/`) — standard library only, no packages installed |
 
-No databases, queues, network calls, or package dependencies.
+No databases, queues, network calls, or third-party package dependencies.
 
 ---
 

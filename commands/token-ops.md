@@ -1,6 +1,6 @@
 Plan and monitor a token budget for the coding task in $ARGUMENTS. If $ARGUMENTS is empty, ask the user what task to scope before doing anything else.
 
-This command has three phases: an initial rough forecast before any work starts, an optional recalibration once planning/scoping is done and before the first build action, and a running budget header on every subsequent turn for the rest of this session. Full calculation methodology and worked examples live in [FORECASTING.md](../FORECASTING.md) — this file is the operative contract; that doc is the reference for *why* the numbers are what they are.
+This command has three phases: an initial rough forecast before any work starts, an optional recalibration once planning/scoping is done and before the first build action, and a running budget header on every subsequent turn for the rest of this session. Full calculation methodology and worked examples live in [FORECASTING.md](../docs/FORECASTING.md) — this file is the operative contract; that doc is the reference for *why* the numbers are what they are.
 
 ## Phase 1 — Initial Forecast (before any tool calls or code)
 
