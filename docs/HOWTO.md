@@ -174,16 +174,16 @@ python3 scripts/prerun_estimate.py --scope path/to/area --budget-usd 25
 
 ```
 $ python3 scripts/prerun_estimate.py --budget-usd 5
-Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,488 LOC
+Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,512 LOC
 
 | Profile | Steps | Est. total tokens | Est. cost (USD) | Fits budget? |
 |---|---|---|---|---|
-| pr_quick_scan | 10 | 124,085 | $1.83 | ✅ |
-| standard_taint_audit | 150 | 3,213,090 | $38.09 | ❌ |
-| deep_exploit_hunt | 500 | 18,264,639 | $226.36 | ❌ |
+| pr_quick_scan | 10 | 124,602 | $1.85 | ✅ |
+| standard_taint_audit | 150 | 3,223,785 | $38.59 | ❌ |
+| deep_exploit_hunt | 500 | 18,325,359 | $229.24 | ❌ |
 ```
 
-If the total LOC exceeds 500,000, `prerun_estimate.py` prints a warning naming the largest top-level directory — scope the scan to a subfolder with `--scope` rather than the whole repo. Add `--batch` to apply the batch-API discount from the rate card, or `--model claude-opus-4.7` to use the alternate rate card entry.
+If the total LOC exceeds 500,000, `prerun_estimate.py` prints a warning naming the largest top-level directory — scope the scan to a subfolder with `--scope` rather than the whole repo. Add `--batch` to apply the batch-API discount from the rate card. The dollar figures target the managed Claude Security product (`claude.ai/security`, Enterprise-only, fixed on Claude Mythos 5, billed at direct token cost) — see [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) for why that's the surface this estimator maps onto, not the Claude Code plugin.
 
 ---
 

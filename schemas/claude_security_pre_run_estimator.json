@@ -1,20 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "claude_security_pre_run_estimator",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "rate_card_source": "https://platform.claude.com/docs/en/about-claude/pricing — 'Claude Mythos 5' row, confirmed against platform.claude.com/docs and claude.com/product/claude-security as the fixed model behind the managed, Enterprise-only Claude Security product (claude.ai/security), billed at direct token cost. Retrieved 2026-09-02.",
   "rate_cards": {
-    "claude-mythos-5.1": {
+    "claude-mythos-5": {
       "base_input_per_m": 10.00,
       "output_per_m": 50.00,
-      "cache_read_per_m": 0.25,
+      "cache_read_per_m": 1.00,
       "cache_write_1h_per_m": 20.00,
-      "batch_discount": 0.50
-    },
-    "claude-opus-4.7": {
-      "base_input_per_m": 5.00,
-      "output_per_m": 25.00,
-      "cache_read_per_m": 0.50,
-      "cache_write_per_m": 6.25,
       "batch_discount": 0.50
     }
   },

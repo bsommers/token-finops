@@ -35,17 +35,19 @@ So: **indirectly, through better scoping decisions** — this is a decision-supp
 [`scripts/prerun_estimate.py`](../scripts/prerun_estimate.py) chains the indexer into [`estimate_claude_security_cost()`](../scripts/estimate_claude_security_cost.py) across all three scan-depth profiles and prints a markdown table:
 
 ```bash
-python3 scripts/prerun_estimate.py --scope services/auth --budget-usd 25 --model claude-mythos-5.1
+python3 scripts/prerun_estimate.py --budget-usd 25 --model claude-mythos-5
 ```
 
+Worked example, run against this repo's own root (`--scope services/auth` would restrict indexing to that subdirectory the same way, for a repo that has one):
+
 ```
-Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,488 LOC
+Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,512 LOC
 
 | Profile | Steps | Est. total tokens | Est. cost (USD) | Fits budget? |
 |---|---|---|---|---|
-| pr_quick_scan | 10 | 124,085 | $1.83 | ✅ |
-| standard_taint_audit | 150 | 3,213,090 | $38.09 | ❌ |
-| deep_exploit_hunt | 500 | 18,264,639 | $226.36 | ❌ |
+| pr_quick_scan | 10 | 124,602 | $1.85 | ✅ |
+| standard_taint_audit | 150 | 3,223,785 | $38.59 | ❌ |
+| deep_exploit_hunt | 500 | 18,325,359 | $229.24 | ❌ |
 ```
 
 Add `--budget-usd` to get a ✅/❌ column per profile instead of just raw numbers, or `--batch` to apply the batch-API discount from the rate card.

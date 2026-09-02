@@ -9,12 +9,12 @@
 ```
 | Profile               | Est. cost (USD) |
 |------------------------|-----------------|
-| pr_quick_scan          | $1.83           |
-| standard_taint_audit   | $38.09          |
-| deep_exploit_hunt      | $226.36         |
+| pr_quick_scan          | $1.85           |
+| standard_taint_audit   | $38.59          |
+| deep_exploit_hunt      | $229.24         |
 ```
 
-That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $226 decision, not a $2 one — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
+That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $229 decision, not a $2 one, on the Mythos-5-backed Enterprise product's own confirmed rate card — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
 
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
 
@@ -104,7 +104,7 @@ token-finops/
 
 ## Configuration
 
-None for `/token-ops` — it takes its only input as free-text arguments after `/token-ops` (the task description) and asks for one if it's omitted. The draft estimator's config is the rate card and scan-profile definitions in [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json) (unverified — see [docs/SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md)).
+None for `/token-ops` — it takes its only input as free-text arguments after `/token-ops` (the task description) and asks for one if it's omitted. The draft estimator's config is the rate card and scan-profile definitions in [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json) — the rate card (Claude Mythos 5, the fixed model behind the managed Claude Security Enterprise product) is confirmed against Anthropic's published pricing; the scan-depth step-count multipliers are still unverified defaults — see [docs/SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md).
 
 ---
 

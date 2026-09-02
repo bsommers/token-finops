@@ -1,23 +1,30 @@
 """Pre-run cost estimator for agentic security-scan workloads.
 
+Estimates the dollar cost of a scan on the managed Claude Security product
+(claude.ai/security, Enterprise-only), which runs exclusively on Claude
+Mythos 5 and is "charged at direct token cost only" — no platform fee — per
+Anthropic's published docs. That fixed model and direct billing are what
+make a dollar pre-flight estimate meaningful here; the separate Claude
+Security *plugin* for Claude Code has no fixed rate card of its own (it
+runs on whichever model your account has access to) and isn't billed
+separately at all — it draws from your Claude Code plan's usage limits,
+the same pool /token-ops already tracks. See CLAUDE_SECURITY_USAGE.md.
+
 Draft companion to SECURITY_SCAN_ESTIMATOR.md — see that doc for the
 derivation of the formulas and the open questions pending refinement
-(rate card / model IDs, LOC-to-token density per language, output format).
+(LOC-to-token density per language, output format).
 """
 
 
 def estimate_claude_security_cost(
     loc: int,
     profile: str = "standard_taint_audit",
-    model: str = "claude-mythos-5.1",
+    model: str = "claude-mythos-5",
     is_batch: bool = False,
 ) -> dict:
     rates = {
-        "claude-mythos-5.1": {
-            "input": 10.0, "output": 50.0, "cache_read": 0.25, "cache_write": 20.0
-        },
-        "claude-opus-4.7": {
-            "input": 5.0, "output": 25.0, "cache_read": 0.50, "cache_write": 6.25
+        "claude-mythos-5": {
+            "input": 10.0, "output": 50.0, "cache_read": 1.00, "cache_write": 20.0
         },
     }[model]
 
