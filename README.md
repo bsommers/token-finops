@@ -4,7 +4,7 @@
 
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
 
-This repo is deliberately small: one command, driving one behavioral protocol. It also holds a draft, in-progress companion — a *pre-run* dollar-cost estimator for agentic security-scan workloads (as opposed to `/token-ops`'s live session monitoring) — see [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md).
+This repo is deliberately small: one command, driving one behavioral protocol. It also holds a draft, in-progress companion — a *pre-run* dollar-cost estimator for agentic security-scan workloads (as opposed to `/token-ops`'s live session monitoring), including a local, offline repo indexer and a mapping onto the real Claude Security public beta — see [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md), [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md), and [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md).
 
 ---
 
@@ -69,12 +69,16 @@ token-finops/
 ├── schemas/
 │   └── claude_security_pre_run_estimator.json  — rate card + scan-profile config (draft)
 ├── scripts/
-│   └── estimate_claude_security_cost.py         — reference estimator implementation (draft)
+│   ├── estimate_claude_security_cost.py         — reference estimator implementation (draft)
+│   ├── index_repo.py                            — local, offline LOC/file indexer (draft)
+│   └── prerun_estimate.py                       — CLI: index + estimate in one pass (draft)
 ├── README.md             — this file
 ├── ARCHITECTURE.md       — protocol design, state model, diagrams
 ├── PURPOSE.md            — why this exists, goals, non-goals
 ├── FORECASTING.md        — how the budget numbers are calculated and recalibrated
 ├── SECURITY_SCAN_ESTIMATOR.md — draft pre-run cost estimator for agentic security scans
+├── LOCAL_PRESCAN_INDEXING.md  — local indexing exploration: does it cut scan tokens, and how
+├── CLAUDE_SECURITY_USAGE.md   — how this maps onto the real Claude Security public beta
 ├── HOWTO.md              — task-oriented usage guide
 └── .gitignore            — excludes local, machine-specific Claude Code settings
 ```
@@ -97,6 +101,9 @@ None. The command takes its only input as free-text arguments after `/token-ops`
 | [Forecasting Methodology](FORECASTING.md) | How the baseline, file-read, thinking, and output estimates are calculated, and how Phase 1.5 recalibrates them once real planning info exists — with or without GSD/gstack |
 | [Purpose](PURPOSE.md) | The problem this solves, goals, non-goals, trade-offs |
 | [How-To Guide](HOWTO.md) | Install, invoke, read the output, tune the threshold, debug |
+| [Security Scan Estimator](SECURITY_SCAN_ESTIMATOR.md) *(draft)* | Pre-run dollar-cost model for agentic security scans, separate from `/token-ops`'s session monitoring |
+| [Local Pre-Scan Indexing](LOCAL_PRESCAN_INDEXING.md) *(draft)* | Offline LOC/directory indexer feeding the estimator, and what it can/can't do to cut scan tokens |
+| [Claude Security Usage](CLAUDE_SECURITY_USAGE.md) *(draft)* | How this repo's tooling maps onto the real Claude Security public beta (managed product + Claude Code plugin) |
 
 ---
 

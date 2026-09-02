@@ -2,7 +2,7 @@
 
 > **Status: draft, pending refinement.** This is a *pre-execution* cost estimator for agentic security-scan workloads (e.g. Claude Security-style multi-stage scans: indexing → call-graph traversal → dynamic tool calls → patch generation) — not the same thing as `/token-ops`. `/token-ops` forecasts and monitors a **live coding session's** token budget turn by turn; this estimator predicts the **dollar cost of a scan job before it runs**, from static inputs (lines of code, scan depth) alone, so it can gate whether the job runs at all. See [FORECASTING.md](FORECASTING.md) for the session-monitoring methodology this complements.
 
-Open items below are intentionally left as TODOs — this doc captures the model as received, to be tuned once those are resolved.
+Open items below are intentionally left as TODOs — this doc captures the model as received, to be tuned once those are resolved. **See also**: [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) maps this model onto the real Claude Security public beta (managed product + Claude Code plugin), and [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md) covers a local, offline indexer ([`scripts/index_repo.py`](scripts/index_repo.py)) that feeds real LOC/directory data into the estimator below instead of a guessed total.
 
 ---
 
@@ -46,16 +46,16 @@ Agent step volume determines prompt-cache read volume:
 
 Machine-readable schema: [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json).
 
-> ⚠️ **Rate card and model IDs are unverified.** `claude-mythos-5.1` and `claude-opus-4.7` don't match this repo's known current model IDs (`claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`). Confirm both the model identifiers and the per-token rates against the live pricing page before wiring this into any real budget gate — see [claude-api skill](https://claude.com) or the current Anthropic pricing docs as the source of truth, not this file.
+> ⚠️ **Rate card is partially verified.** `claude-mythos-5.1` does correspond to a real model — Anthropic's docs confirm the *managed* Claude Security product (`claude.ai/security`, Enterprise-only) scans exclusively on **Claude Mythos 5**; the `.1` and the exact per-token rates here are still unconfirmed against live pricing. `claude-opus-4.7` doesn't match any current model ID and doesn't really apply here: the separate **Claude Security plugin for Claude Code** (`/claude-security` command) uses whichever model(s) you already have access to in your Claude Code account, not a fixed scan model — see [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) for the full managed-vs-plugin breakdown, including confirmed billing behavior for each.
 
 ## Executable Estimator
 
-Reference implementation: [`scripts/estimate_claude_security_cost.py`](scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc, profile, model, is_batch)`, returns estimated total USD plus a cost and token-volume breakdown.
+Reference implementation: [`scripts/estimate_claude_security_cost.py`](scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc, profile, model, is_batch)`, returns estimated total USD plus a cost and token-volume breakdown. Rather than guessing `loc`, feed it a real count from [`scripts/index_repo.py`](scripts/index_repo.py), or run the two chained via [`scripts/prerun_estimate.py`](scripts/prerun_estimate.py) for a one-shot table across all three profiles — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md).
 
 ## Guardrails to Implement Before a Scan Runs
 
-- **Hard-cap budget gating**: intercept jobs where `estimated_total_usd > budget_threshold` before triggering the scan.
-- **Directory scoping**: if `loc > 500,000`, prompt for scoping to a sub-folder (e.g. `/services/auth/`) rather than scanning the whole repo root.
+- **Hard-cap budget gating**: intercept jobs where `estimated_total_usd > budget_threshold` before triggering the scan — `prerun_estimate.py --budget-usd N` implements this as a ✅/❌ flag per profile.
+- **Directory scoping**: if `loc > 500,000`, prompt for scoping to a sub-folder (e.g. `/services/auth/`) rather than scanning the whole repo root — `prerun_estimate.py` warns and names the largest top-level directory once this threshold is crossed.
 - **Batch routing**: route full-repository scheduled/scanning audits through a batch API automatically via CI/CD to guarantee the batch discount on non-cached token volume.
 
 ---
@@ -65,5 +65,5 @@ Reference implementation: [`scripts/estimate_claude_security_cost.py`](scripts/e
 These are deliberately unresolved — the model above is generic until they're answered:
 
 1. **Language/stack-specific token-per-LOC factor.** The flat `LOC × 12.5` density is a blended default; it should be tuned per primary language/stack (e.g. dense languages like JSON/config vs. terse ones like Python vs. verbose ones like Java/XML skew this materially).
-2. **Target integration surface.** Whether this estimator is meant to run as a CLI pre-commit hook, a GitHub Actions gate, or a direct Claude Platform API pre-flight check changes both the interface shape and where the hard-cap guardrail actually gets enforced.
+2. **Target integration surface — partially resolved.** Confirmed: Claude Security ships as *both* a hosted Enterprise product (no CLI/API access documented) and a Claude Code plugin (`/claude-security`, installed via `/plugin install claude-security@claude-plugins-official`) that runs inside a session and counts against the plan's usage limits rather than being billed separately. This repo's tooling targets the plugin path — see [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md). Still open: whether a hard-cap gate should live in a Claude Code command/hook (blocking before `/claude-security` runs) versus a CI gate for a hypothetical future non-interactive invocation — no such CI/Actions surface is documented today.
 3. **Preferred data format for the tool itself.** Whether the drop-in integration should be a Python class, an MCP server tool definition, or a Terraform module (for infra-as-code budget policy) is still open.
