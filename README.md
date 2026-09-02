@@ -2,6 +2,20 @@
 
 > A Claude Code slash command that forecasts and monitors token/context budget for a coding task, so long sessions don't silently blow past the context window.
 
+**Value proposition, in one line:** this repo puts a real number on token spend *before* you commit to it — a token budget forecast before a coding task starts (`/token-ops`), and a **dollar-figure cost estimate before a Claude Security scan runs** (the draft pre-flight estimator below). Both exist because Claude Code and Claude Security only tell you cost *after* the fact, or in vague terms ("relative cost") *before* it — never a number you can budget against ahead of time.
+
+**The specific pre-flight value-add**: the Claude Security plugin's own scoping step tells you a scan's cost only qualitatively — "the plugin reads your repository first, then offers the whole repository or a focused area, with each option's file count and *relative* cost stated." No dollar figure, no token count. This repo's `prerun_estimate.py` closes that gap — indexing your repo locally (offline, no network calls) and turning that vague signal into an actual table:
+
+```
+| Profile               | Est. cost (USD) |
+|------------------------|-----------------|
+| pr_quick_scan          | $1.83           |
+| standard_taint_audit   | $38.09          |
+| deep_exploit_hunt      | $226.36         |
+```
+
+That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $226 decision, not a $2 one — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
+
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
 
 This repo is deliberately small: one command, driving one behavioral protocol. It also holds a draft, in-progress companion — a *pre-run* dollar-cost estimator for agentic security-scan workloads (as opposed to `/token-ops`'s live session monitoring), including a local, offline repo indexer and a mapping onto the real Claude Security public beta — see [SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md), [LOCAL_PRESCAN_INDEXING.md](docs/LOCAL_PRESCAN_INDEXING.md), and [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).

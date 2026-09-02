@@ -42,7 +42,7 @@ Prerequisites: a paid plan with dynamic workflows on (`/config` on Pro), `python
 
 ## Where this repo's estimator fits
 
-The plugin already does a lightweight pre-flight itself: "The plugin reads your repository first, then offers the whole repository or a focused area, with each option's **file count and relative cost** stated." That's qualitative — no dollar figure, no token count. This repo's estimator turns that into a number *before* you get to the plugin's confirm step:
+The plugin already does a lightweight pre-flight itself: "The plugin reads your repository first, then offers the whole repository or a focused area, with each option's **file count and relative cost** stated." That's qualitative — no dollar figure, no token count. **This is the value-add**: this repo's estimator turns that into an actual $ number *before* you get to the plugin's confirm step:
 
 ```bash
 # 1. Index the repo locally (offline, no network, no model calls)

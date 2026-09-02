@@ -1,5 +1,7 @@
 # Claude Security Pre-Run Cost Estimator (Draft)
 
+**Value-add**: the Claude Security plugin's own pre-flight step only states a scan's cost *qualitatively* (file count + "relative cost"). This model puts an actual dollar figure on it, per scan-depth profile, before you confirm a run.
+
 > **Status: draft, pending refinement.** This is a *pre-execution* cost estimator for agentic security-scan workloads (e.g. Claude Security-style multi-stage scans: indexing → call-graph traversal → dynamic tool calls → patch generation) — not the same thing as `/token-ops`. `/token-ops` forecasts and monitors a **live coding session's** token budget turn by turn; this estimator predicts the **dollar cost of a scan job before it runs**, from static inputs (lines of code, scan depth) alone, so it can gate whether the job runs at all. See [FORECASTING.md](FORECASTING.md) for the session-monitoring methodology this complements.
 
 Open items below are intentionally left as TODOs — this doc captures the model as received, to be tuned once those are resolved. **See also**: [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) maps this model onto the real Claude Security public beta (managed product + Claude Code plugin), and [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md) covers a local, offline indexer ([`scripts/index_repo.py`](../scripts/index_repo.py)) that feeds real LOC/directory data into the estimator below instead of a guessed total.
