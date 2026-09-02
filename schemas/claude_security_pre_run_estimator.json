@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "claude_security_pre_run_estimator",
+  "version": "1.0.0",
+  "rate_cards": {
+    "claude-mythos-5.1": {
+      "base_input_per_m": 10.00,
+      "output_per_m": 50.00,
+      "cache_read_per_m": 0.25,
+      "cache_write_1h_per_m": 20.00,
+      "batch_discount": 0.50
+    },
+    "claude-opus-4.7": {
+      "base_input_per_m": 5.00,
+      "output_per_m": 25.00,
+      "cache_read_per_m": 0.50,
+      "cache_write_per_m": 6.25,
+      "batch_discount": 0.50
+    }
+  },
+  "scan_profiles": {
+    "pr_quick_scan": {
+      "avg_steps": 10,
+      "cache_subgraph_ratio": 0.05,
+      "tool_input_per_step": 8000,
+      "output_per_step": 1200
+    },
+    "standard_taint_audit": {
+      "avg_steps": 150,
+      "cache_subgraph_ratio": 0.20,
+      "tool_input_per_step": 15000,
+      "output_per_step": 2000
+    },
+    "deep_exploit_hunt": {
+      "avg_steps": 500,
+      "cache_subgraph_ratio": 0.35,
+      "tool_input_per_step": 25000,
+      "output_per_step": 4000
+    }
+  }
+}

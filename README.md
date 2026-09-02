@@ -4,7 +4,7 @@
 
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
 
-This repo is deliberately small: one command, driving one behavioral protocol.
+This repo is deliberately small: one command, driving one behavioral protocol. It also holds a draft, in-progress companion — a *pre-run* dollar-cost estimator for agentic security-scan workloads (as opposed to `/token-ops`'s live session monitoring) — see [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md).
 
 ---
 
@@ -66,10 +66,15 @@ Claude responds with a forecast table, then opens every subsequent turn with a `
 token-finops/
 ├── commands/
 │   └── token-ops.md     — the /token-ops command definition (plain Markdown, no frontmatter)
+├── schemas/
+│   └── claude_security_pre_run_estimator.json  — rate card + scan-profile config (draft)
+├── scripts/
+│   └── estimate_claude_security_cost.py         — reference estimator implementation (draft)
 ├── README.md             — this file
 ├── ARCHITECTURE.md       — protocol design, state model, diagrams
 ├── PURPOSE.md            — why this exists, goals, non-goals
 ├── FORECASTING.md        — how the budget numbers are calculated and recalibrated
+├── SECURITY_SCAN_ESTIMATOR.md — draft pre-run cost estimator for agentic security scans
 ├── HOWTO.md              — task-oriented usage guide
 └── .gitignore            — excludes local, machine-specific Claude Code settings
 ```
