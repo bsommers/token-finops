@@ -16,6 +16,8 @@
 
 That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $229 decision, not a $2 one, on the Mythos-5-backed Enterprise product's own confirmed rate card — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
 
+**➡️ [Run a pre-flight scan estimate for the Claude Security Enterprise service](docs/RUN_ENTERPRISE_PREFLIGHT.md)** — the step-by-step walkthrough for getting the dollar figure above against your own repo before a real `claude.ai/security` scan.
+
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
 
 This repo is deliberately small: one command, driving one behavioral protocol. It also holds a draft, in-progress companion — a *pre-run* dollar-cost estimator for agentic security-scan workloads (as opposed to `/token-ops`'s live session monitoring), including a local, offline repo indexer and a mapping onto the real Claude Security public beta — see [SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md), [LOCAL_PRESCAN_INDEXING.md](docs/LOCAL_PRESCAN_INDEXING.md), and [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
@@ -93,7 +95,8 @@ token-finops/
 │   ├── HOWTO.md                     — task-oriented usage guide
 │   ├── SECURITY_SCAN_ESTIMATOR.md   — draft pre-run cost estimator for agentic security scans
 │   ├── LOCAL_PRESCAN_INDEXING.md    — local indexing exploration: does it cut scan tokens, and how
-│   └── CLAUDE_SECURITY_USAGE.md     — how this maps onto the real Claude Security public beta
+│   ├── CLAUDE_SECURITY_USAGE.md     — how this maps onto the real Claude Security public beta
+│   └── RUN_ENTERPRISE_PREFLIGHT.md  — step-by-step: estimate a Claude Security Enterprise scan's cost
 ├── README.md             — this file
 └── .gitignore            — excludes local, machine-specific Claude Code settings
 ```
@@ -133,6 +136,7 @@ To iterate on `/token-ops` itself, edit `commands/token-ops.md`, copy it to `~/.
 | [Security Scan Estimator](docs/SECURITY_SCAN_ESTIMATOR.md) *(draft)* | Pre-run dollar-cost model for agentic security scans, separate from `/token-ops`'s session monitoring |
 | [Local Pre-Scan Indexing](docs/LOCAL_PRESCAN_INDEXING.md) *(draft)* | Offline LOC/directory indexer feeding the estimator, and what it can/can't do to cut scan tokens |
 | [Claude Security Usage](docs/CLAUDE_SECURITY_USAGE.md) *(draft)* | How this repo's tooling maps onto the real Claude Security public beta (managed product + Claude Code plugin) |
+| [Run an Enterprise Pre-Flight Scan](docs/RUN_ENTERPRISE_PREFLIGHT.md) | Step-by-step walkthrough: get a dollar estimate for a Mythos-5-backed Claude Security Enterprise scan before running it |
 
 ---
 
