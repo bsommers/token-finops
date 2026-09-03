@@ -16,6 +16,8 @@
 
 That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $229 decision, not a $2 one, on the Mythos-5-backed Enterprise product's own confirmed rate card — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
 
+The LOC-only estimate above is the zero-setup default; if you already have a graphify knowledge graph built for this repo (the `/graphify` skill's output), `--indexer graphify` adds a structural-complexity multiplier (edge-to-node ratio) on top of it — see [LOCAL_PRESCAN_INDEXING.md](docs/LOCAL_PRESCAN_INDEXING.md#alternate-indexers).
+
 **➡️ [Run a pre-flight scan estimate for the Claude Security Enterprise service](docs/RUN_ENTERPRISE_PREFLIGHT.md)** — the step-by-step walkthrough for getting the dollar figure above against your own repo before a real `claude.ai/security` scan.
 
 Long agentic coding sessions in [Claude Code](https://claude.ai/code) accumulate context — file reads, tool output, thinking, generated code — with no visible running total. By the time a session feels sluggish or starts truncating history, the budget is already gone and there was no checkpoint to compact or clear at. `/token-ops` fixes that: it makes you forecast a token budget before starting a task, then carries a live utilization readout on every turn until you hit a warning threshold and get prompted to intervene.
@@ -86,7 +88,8 @@ token-finops/
 │   └── claude_security_pre_run_estimator.json  — rate card + scan-profile config (draft)
 ├── scripts/
 │   ├── estimate_claude_security_cost.py         — reference estimator implementation (draft)
-│   ├── index_repo.py                            — local, offline LOC/file indexer (draft)
+│   ├── index_repo.py                            — local, offline LOC/file indexer (draft, default)
+│   ├── graphify_indexer.py                      — opt-in alternate: adds a graphify-graph complexity signal (draft)
 │   └── prerun_estimate.py                       — CLI: index + estimate in one pass (draft)
 ├── docs/
 │   ├── ARCHITECTURE.md              — protocol design, state model, diagrams
@@ -117,7 +120,7 @@ There's no build step or test suite — `/token-ops` is validated by using it in
 
 ```bash
 # Sanity-check the estimator scripts parse and run
-python3 -c "import ast; [ast.parse(open(f).read(), f) for f in ['scripts/index_repo.py', 'scripts/prerun_estimate.py', 'scripts/estimate_claude_security_cost.py']]"
+python3 -c "import ast; [ast.parse(open(f).read(), f) for f in ['scripts/index_repo.py', 'scripts/graphify_indexer.py', 'scripts/prerun_estimate.py', 'scripts/estimate_claude_security_cost.py']]"
 python3 scripts/prerun_estimate.py --budget-usd 10
 ```
 

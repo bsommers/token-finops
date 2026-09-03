@@ -21,6 +21,7 @@ def estimate_claude_security_cost(
     profile: str = "standard_taint_audit",
     model: str = "claude-mythos-5",
     is_batch: bool = False,
+    complexity_multiplier: float = 1.0,
 ) -> dict:
     rates = {
         "claude-mythos-5": {
@@ -39,10 +40,14 @@ def estimate_claude_security_cost(
     overhead_tokens = code_tokens * 0.15
     write_tokens = code_tokens + overhead_tokens
 
-    # 2. Dynamic execution token volumes
+    # 2. Dynamic execution token volumes — the complexity multiplier scales
+    # only the two terms that represent agentic traversal work (more
+    # interconnected code means more cross-file hops to trace). It does not
+    # touch write_tokens (loading the codebase into cache once isn't affected
+    # by how interconnected it is) or the flat per-step output term.
     steps = profiles["steps"]
-    cache_read_tokens = write_tokens * profiles["ratio"] * steps
-    dynamic_input_tokens = steps * profiles["tool_in"]
+    cache_read_tokens = write_tokens * profiles["ratio"] * steps * complexity_multiplier
+    dynamic_input_tokens = steps * profiles["tool_in"] * complexity_multiplier
     output_tokens = steps * profiles["out"]
 
     # 3. Cost calculation (per million tokens)

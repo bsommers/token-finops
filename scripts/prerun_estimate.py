@@ -8,7 +8,7 @@ estimated the same way, and ../LOCAL_PRESCAN_INDEXING.md and
 ../SECURITY_SCAN_ESTIMATOR.md for the methodology and its open questions.
 
 Usage:
-    python3 prerun_estimate.py [--scope PATH] [--model claude-mythos-5] [--budget-usd N] [--batch]
+    python3 prerun_estimate.py [--scope PATH] [--model claude-mythos-5] [--indexer {loc,graphify}] [--budget-usd N] [--batch]
 """
 
 import argparse
@@ -17,7 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from estimate_claude_security_cost import estimate_claude_security_cost  # noqa: E402
-from index_repo import index_repo  # noqa: E402
+from index_repo import index_repo as index_repo_loc  # noqa: E402
+from graphify_indexer import index_repo as index_repo_graphify  # noqa: E402
 
 PROFILE_ORDER = ["pr_quick_scan", "standard_taint_audit", "deep_exploit_hunt"]
 PROFILE_STEPS = {"pr_quick_scan": 10, "standard_taint_audit": 150, "deep_exploit_hunt": 500}
@@ -29,12 +30,21 @@ def main() -> None:
     parser.add_argument("--scope", default=None, help="restrict indexing to this subdirectory")
     parser.add_argument("--exclude", action="append", default=[], help="extra glob to exclude (repeatable)")
     parser.add_argument("--model", default="claude-mythos-5", choices=["claude-mythos-5"])
+    parser.add_argument("--indexer", default="loc", choices=["loc", "graphify"],
+                         help="codebase-size backend: 'loc' (default, zero-setup) or "
+                              "'graphify' (opt-in, requires an already-built graph)")
     parser.add_argument("--batch", action="store_true", help="apply the batch-API discount")
     parser.add_argument("--budget-usd", type=float, default=None, help="flag which profiles fit under this budget")
     args = parser.parse_args()
 
-    idx = index_repo(Path(args.root), args.scope, args.exclude)
+    index_repo = index_repo_graphify if args.indexer == "graphify" else index_repo_loc
+    try:
+        idx = index_repo(Path(args.root), args.scope, args.exclude)
+    except FileNotFoundError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
     loc = idx["total_loc"]
+    multiplier = idx["complexity"]["multiplier"] if idx["complexity"] else 1.0
 
     print(f"Indexed {idx['files_counted']} files ({idx['files_excluded']} excluded) "
           f"via {idx['indexed_via']} under scope '{idx['scope']}': **{loc:,} LOC**\n")
@@ -47,7 +57,10 @@ def main() -> None:
     print("| Profile | Steps | Est. total tokens | Est. cost (USD) | Fits budget? |")
     print("|---|---|---|---|---|")
     for profile in PROFILE_ORDER:
-        result = estimate_claude_security_cost(loc, profile=profile, model=args.model, is_batch=args.batch)
+        result = estimate_claude_security_cost(
+            loc, profile=profile, model=args.model, is_batch=args.batch,
+            complexity_multiplier=multiplier,
+        )
         vols = result["token_volumes"]
         total_tokens = sum(vols.values())
         cost = result["estimated_total_usd"]
@@ -55,6 +68,12 @@ def main() -> None:
         if args.budget_usd is not None:
             fits = "✅" if cost <= args.budget_usd else "❌"
         print(f"| {profile} | {PROFILE_STEPS[profile]} | {total_tokens:,} | ${cost:,.2f} | {fits} |")
+
+    if idx["complexity"]:
+        c = idx["complexity"]
+        print(f"\nComplexity: edge/node ratio {c['edge_to_node_ratio']:.2f} "
+              f"(from graphify-out/graph.json, {c['node_count']:,} nodes / {c['edge_count']:,} edges) "
+              f"→ {c['multiplier']:.2f}x cost multiplier applied.")
 
     print(f"\nModel: `{args.model}`{' (batch discount applied)' if args.batch else ''} "
           f"— rate card confirmed against Anthropic's published pricing for the managed Claude "

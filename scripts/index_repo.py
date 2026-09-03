@@ -141,6 +141,8 @@ def index_repo(root: Path, scope: str | None, extra_excludes: list[str]) -> dict
         "by_extension": dict(sorted(by_extension.items(), key=lambda kv: -kv[1]["loc"])),
         "by_top_dir": dict(sorted(by_top_dir.items(), key=lambda kv: -kv[1]["loc"])),
         "largest_files": [{"loc": loc, "path": path} for loc, path in largest_files[:20]],
+        "source": "loc",
+        "complexity": None,
     }
 
 

@@ -52,6 +52,29 @@ Indexed 13 files (1 excluded) via git ls-files under scope '.': 1,512 LOC
 
 Add `--budget-usd` to get a ✅/❌ column per profile instead of just raw numbers, or `--batch` to apply the batch-API discount from the rate card.
 
+## Alternate indexers
+
+`prerun_estimate.py` takes `--indexer {loc,graphify}`, choosing which backend supplies the codebase-size signal:
+
+- **`loc` (default).** [`scripts/index_repo.py`](../scripts/index_repo.py), the LOC counter described above. Zero setup, fully offline, no dependency on anything else being installed or built. This remains fully supported and is what runs when `--indexer` is omitted — `graphify` is an upgrade path for a better estimate when available, never a requirement.
+- **`graphify` (opt-in).** [`scripts/graphify_indexer.py`](../scripts/graphify_indexer.py) reuses `index_repo.py`'s LOC count unchanged, then adds a structural-complexity signal read from an already-built graphify knowledge graph (the `/graphify` skill's output) at `graphify-out/graph.json`: the ratio of edges to nodes, i.e. how interconnected the codebase is. A more interconnected codebase plausibly needs more agentic hops (cross-file traversal) for a taint/exploit-hunt-depth scan to trace call chains, so the ratio drives a bounded cost multiplier (`edge_to_node_ratio / 1.5`, clamped to `[0.75, 2.0]`) applied to the two cost terms that represent agentic traversal work (`cache_read_cost`, `dynamic_input_cost`) — not the flat cache-write or output terms.
+
+This indexer **never builds or updates a graph itself.** Running `/graphify` can cost real LLM tokens (semantic extraction) and sometimes a network call, which would break the offline/no-model-calls guarantee above. If `graphify-out/graph.json` doesn't exist yet, `--indexer graphify` fails with a clear message telling you to run `/graphify <path>` first — there's no silent fallback to the `loc` backend.
+
+Worked example: the same repo, `loc` vs `graphify` (a synthetic 100-node/210-edge graph, ratio 2.1, multiplier 1.4x):
+
+```
+# --indexer loc (default)
+| standard_taint_audit | 150 | 3,286,617 | $38.69 | ❌ |
+
+# --indexer graphify
+| standard_taint_audit | 150 | 3,555,080 | $46.65 | ❌ |
+
+Complexity: edge/node ratio 2.10 (from graphify-out/graph.json, 100 nodes / 210 edges) → 1.40x cost multiplier applied.
+```
+
+The `BASELINE_RATIO` constant (`1.5`) and the clamp bounds are draft defaults, unverified against a real scan — same honesty bar as the LOC-density factor below.
+
 ## Open questions / future work
 
 - **Per-language token density.** `index_repo.py` already buckets LOC by extension — that's the natural place to apply a per-language `tokens/LOC` factor once [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md)'s open question #1 is resolved, instead of the current flat `× 12.5` blended default across every extension.
