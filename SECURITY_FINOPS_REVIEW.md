@@ -1,10 +1,14 @@
 # Code review: security architecture & FinOps integrity
 
-> **Status: review findings, not yet actioned.** Saved for later work, following the same convention as the (now-implemented) `PLAN_GRAPHIFY_INDEXER.md`. Delete or archive once the accepted items are addressed.
+> **Status: partially actioned.** Saved for later work, following the same convention as the (now-implemented) `PLAN_GRAPHIFY_INDEXER.md`. Delete or archive once the remaining items are addressed.
 >
 > **Reviewed:** commit `4aec70d` (post-graphify-indexer), all of `scripts/`, `schemas/`, `commands/`, `docs/`, `README.md`.
 > **Date:** 2026-09-03
 > **Lens:** AI-systems security architecture + FinOps. Every claim below was reproduced against the code — reproduction commands are in the appendix.
+>
+> **⚠️ Correction (2026-09-03, same day):** F2 originally stated the whole-repo cache assumption breaks above **~16,000 LOC**, derived from a 200k-token context window. That was wrong — I used a context window from memory instead of checking. Every model in the rate card has a **1M-token context window** (verified against `platform.claude.com/docs/en/about-claude/models/overview`), which puts the real threshold at **~70,000 LOC**. The finding stands; the number was off by 4.3x in the alarming direction. F2 below has been corrected.
+>
+> **Addressed in the follow-up commit** (rate-card verification + token-source work): **S3**, **G1**, **G3**, **F6**, and the modeling half of **F2** and **F4**. Each is marked inline. **S1, S2, C1, C2, C3, G2, F1, F3, F5 remain open.**
 
 ## Threat model, stated up front
 
@@ -38,21 +42,21 @@ That is not necessarily *wrong* (a scan's step count plausibly is the dominant c
 
 **Fix:** print the LOC-driven share alongside the total, e.g. `$38.69 (2% attributable to your 1,653 LOC; 98% is profile step-count)`. This is a one-line change to `prerun_estimate.py` and it converts a misleading number into an honest one. It also immediately tells a user that scoping down their repo will *not* save them money at small scale — which is currently the tool's implied advice and is wrong at that scale.
 
-### F2. The "cache the whole codebase once" assumption is physically impossible above ~16k LOC — **High**
+### F2. The "cache the whole codebase once" assumption is physically impossible above ~70k LOC — **High** *(modeling fixed; guardrail still to re-derive)*
 
-`write_tokens = loc × 12.5 × 1.15` is charged as a single cache write, i.e. the model assumes the entire codebase is loaded into one cached prompt prefix. Against real context limits:
+`write_tokens = loc × 12.5 × 1.15` is charged as a single cache write, i.e. the model assumes the entire codebase is loaded into one cached prompt prefix. Against the **1M-token context window** these models actually have:
 
-| LOC | Implied single-prefix cache write |
-|---|---|
-| 16,000 | ~230,000 tokens |
-| 100,000 | ~1,437,500 tokens |
-| 500,000 | ~7,187,499 tokens |
+| LOC | Implied single-prefix cache write | Fits 1M window? |
+|---|---|---|
+| 70,000 | ~1,006,250 tokens | borderline |
+| 100,000 | ~1,437,500 tokens | no (1.4x over) |
+| 500,000 | ~7,187,499 tokens | no (7.2x over) |
 
-Above roughly **16,000 LOC** this exceeds a 200k context window; the 500k-LOC guardrail the tool actually warns at is ~7.2M tokens, off by more than an order of magnitude from any available window. A real agentic scanner reads files selectively; it does not cache the repo.
+Above roughly **70,000 LOC** this exceeds the window; the 500k-LOC guardrail the tool warns at is ~7.2M tokens, over 7x the largest available window. A real agentic scanner reads files selectively; it does not cache the whole repo.
 
-The two findings compound badly and in opposite directions: **where the model is most sensitive to its input (large repos), its core assumption is most broken; where the assumption roughly holds (small repos), the input barely matters.** The model has a narrow validity band and it is not the band the tool advertises.
+F1 and F2 compound badly and in opposite directions: **where the model is most sensitive to its input (large repos), its core assumption is most broken; where the assumption roughly holds (small repos), the input barely matters.** The model has a narrow validity band and it is not the band the tool advertises.
 
-**Fix:** cap `write_tokens` at a documented per-model context ceiling and model the remainder as additional selective reads (i.e. more `dynamic_input`), or explicitly re-derive the large-repo branch. At minimum, document the ceiling and refuse to print a single-prefix cache-write figure above it. The existing 500k guardrail should be re-derived from the context window, not left at a round number.
+**Status: the arithmetic is fixed.** `estimate_claude_security_cost()` now caps the cached portion at the model's `context_window` (loaded from the rate card) and reprices the remainder as selective reads, reporting it as `context_overflow_tokens`. Still open: the 500k-LOC guardrail message should be re-derived from the context window rather than left at a round number.
 
 ### F3. One cache write is charged for a scan that will outlive the cache TTL — **Medium**
 
@@ -60,7 +64,7 @@ The rate card uses `cache_write_1h_per_m` (the 1-hour-TTL rate), but the model c
 
 **Fix:** add an explicit `cache_rewrites` term (even a crude `ceil(estimated_wall_clock / ttl)`), or drop to the 5-minute cache rate and model re-writes per step-block. Either way, make the TTL assumption visible in the output.
 
-### F4. `--batch` produces a number that this workload cannot realize — **Medium**
+### F4. `--batch` produces a number that this workload cannot realize — **Medium** *(confirmed by Anthropic docs; flag now warns)*
 
 `--batch` applies a 50% discount to input and output. The Batch API is asynchronous with a long turnaround and no interactive tool-use loop. An agentic security scan is *definitionally* a sequential tool-use loop — it cannot run as a batch job. The flag therefore offers a one-keystroke path to a number that is half the true cost and unachievable in practice.
 
@@ -74,7 +78,7 @@ Output is rendered to the cent (`$229.78`) from step-count multipliers the docs 
 
 **Fix:** render a range, not a point (`~$180–$310`), or round to two significant figures. Carry the uncertainty in the primary artifact, not the caveat line.
 
-### F6. The budget guardrail does not guard anything — **Medium** (**↑ High on promotion**)
+### F6. The budget guardrail does not guard anything — **Medium** (**↑ High on promotion**) — **ADDRESSED**
 
 `--budget-usd` prints ✅/❌ and then **exits 0 regardless**. Verified: all three profiles over budget still returns exit code 0. It cannot gate a hook, a CI job, or a pre-scan check — which is precisely the "Phase 0 forecast step" the docs propose. A budget control that cannot fail is a report, not a control.
 
@@ -110,7 +114,7 @@ Two distinct defects:
 
 **Fix:** record graph provenance in the output (graph file hash, mtime, node/edge counts) so an estimate is reproducible and auditable; warn when the graph is older than the working tree; and treat the multiplier as advisory — never let it be the sole basis of a gating decision (see F6).
 
-### S3. The clamp is enforced in the wrong layer, and the cost function validates nothing — **Medium**
+### S3. The clamp is enforced in the wrong layer, and the cost function validates nothing — **Medium** — **ADDRESSED**
 
 `estimate_claude_security_cost()` is documented as a **reference implementation** others are expected to import. Its only guard against absurd inputs lives in `graphify_indexer.py`, one layer up. Any other caller bypasses it entirely:
 
@@ -157,7 +161,7 @@ It reports paths and line counts (not contents) of files outside the root. `path
 
 ## Part 4 — Governance & assurance
 
-### G1. The documented config file is dead code — **Medium**
+### G1. The documented config file is dead code — **Medium** — **ADDRESSED**
 
 `schemas/claude_security_pre_run_estimator.json` holds the rate card and all three scan profiles. **Nothing reads it.** Verified: no reference to it anywhere in `scripts/` or `commands/`. Every value is independently hardcoded in `estimate_claude_security_cost.py`.
 
@@ -173,7 +177,7 @@ The README is explicit: "There's no build step or test suite," and verification 
 
 **Fix:** a single `tests/test_estimator.py` covering (a) golden values per profile at fixed LOC, (b) the rate card matching the schema (closes G1), (c) `complexity_multiplier=1.0` being exactly identity, (d) rejection of negative LOC / out-of-range multipliers, (e) the graphify malformed-input cases from S1. Roughly 60 lines of stdlib `unittest`, no new dependencies, preserving the zero-install posture.
 
-### G3. Rate cards have provenance but no expiry — **Low**
+### G3. Rate cards have provenance but no expiry — **Low** — **ADDRESSED**
 
 The schema records `Retrieved 2026-09-02`, which is good practice and better than most. But nothing surfaces staleness: in six months the tool will still print confident dollar figures from a stale card, and the code path (which has no date at all) is the one actually doing the math.
 
@@ -247,3 +251,41 @@ python3 scripts/index_repo.py --root /tmp/nogit --scope ../../etc
 # G1 — nothing reads the schema
 grep -rn "claude_security_pre_run_estimator" scripts/ commands/ || echo "no readers"
 ```
+
+---
+
+## Addendum — rate-card verification (2026-09-03)
+
+Verified every rate in `schemas/claude_security_pre_run_estimator.json` against Anthropic's live pricing docs (`platform.claude.com/docs/en/about-claude/pricing`, model-pricing + prompt-caching + batch tables) and the models overview. Result: **the pinned Mythos 5 card was correct**, but it was pinned to the *older* model in the family, and two widely-repeated claims about it are wrong.
+
+### Confirmed correct for `claude-mythos-5`
+
+| Rate | Repo value | Live docs | ✓ |
+|---|---|---|---|
+| Base input | $10.00 / MTok | $10 / MTok | ✓ |
+| Output | $50.00 / MTok | $50 / MTok | ✓ |
+| Cache read | $1.00 / MTok | $1 / MTok | ✓ |
+| 1h cache write | $20.00 / MTok | $20 / MTok | ✓ |
+| Batch | 0.5x | $5 / $25 (= 0.5x) | ✓ |
+| Access | Enterprise-only | "limited availability" — Project Glasswing | ✓ (wording corrected) |
+
+### Corrections
+
+1. **`claude-mythos-5` is superseded by `claude-mythos-5-1`, and the newer model's cache reads are 4x cheaper.** Cache hits are `0.1x` base input on every model *except* Claude Fable 5.1 and Claude Mythos 5.1, which are `0.025x` — **$0.25/MTok instead of $1.00/MTok**. Both models are still listed as available. For a `deep_exploit_hunt` on a 500k-LOC repo this is a **$481.88 → $350.62 (−27%)** difference from the model choice alone. Any claim that "Mythos 5 cached input is $1.00/MTok, a 90% discount" is correct only for the *older* model and is 4x too high for 5.1.
+
+2. **"$10/$50 is the highest API price among Anthropic's models" is not accurate.** Claude Opus 4.1 and Claude Opus 4 are **$15/$75** (retired on first-party, still served on Bedrock and Google Cloud). $10/$50 is the highest among *current* models — true as stated for the lineup you'd actually pick from, but not unqualified.
+
+3. **The Batch API genuinely does not apply here — now confirmed by Anthropic's own docs, not just inference.** The pricing page states the batch discount does not apply to stateful, interactive agent sessions: *"Sessions are stateful and interactive. There is no batch mode."* This upgrades **F4** from a reasoned objection to a documented fact. `--batch` is retained for hypothetical modeling only and now prints a warning.
+
+4. **Tokenizer shift makes the `12.5 tokens/LOC` factor suspect in a specific, quantified direction.** Anthropic's docs note that Claude 4.7-and-later models — which is every model in this rate card — use a tokenizer producing **~30% more tokens for the same text** than the Sonnet 4.6-era tokenizer. Any tokens-per-LOC factor carried over from an older model is therefore roughly 30% low. This is a concrete, directional answer to open question #1 in `SECURITY_SCAN_ESTIMATOR.md`, and an argument for measuring rather than assuming (see the new `--token-source` options).
+
+5. **No long-context surcharge exists.** The full 1M window bills at standard rates, so the estimator is right not to model a tier premium.
+
+### Newly surfaced unmodeled cost terms
+
+Not yet in the model; recorded for later:
+
+- **Managed-agent session runtime** — $0.08 per session-hour, billed on top of tokens, for the Managed Agents surface. If a Claude Security scan runs as a managed session, a multi-hour `deep_exploit_hunt` carries a small but real runtime charge the estimator omits entirely.
+- **Web search** — $10 per 1,000 searches. A scan that looks up CVEs would incur this outside the token model.
+- **Tool-use system prompt overhead** — 286–410 tokens per request just for tool definitions, before any tool results. At 500 steps that is ~150k–205k tokens the model does not count.
+- **`inference_geo: "us"`** — a 1.1x multiplier on *all* token categories. Relevant for any regulated deployment that pins US-only inference, and currently invisible in the estimate.

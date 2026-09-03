@@ -48,17 +48,31 @@ Agent step volume determines prompt-cache read volume:
 
 Machine-readable schema: [`schemas/claude_security_pre_run_estimator.json`](../schemas/claude_security_pre_run_estimator.json).
 
-> ✅ **Rate card confirmed.** The estimator targets the **managed** Claude Security product (`claude.ai/security`, Enterprise-only), which Anthropic's docs confirm runs scans exclusively on **Claude Mythos 5** (API model ID `claude-mythos-5`) and is "charged at direct token cost only" — no additional platform fee. That combination — one fixed model, direct per-token billing — is what makes a dollar figure meaningful here at all. The rate card values ($10/MTok input, $50/MTok output, $1/MTok cache read, $20/MTok 1h cache write) are taken directly from [Anthropic's published pricing page](https://platform.claude.com/docs/en/about-claude/pricing), retrieved 2026-09-02. There is deliberately only one entry: the separate **Claude Security plugin for Claude Code** (`/claude-security` command) uses whichever model(s) you already have access to in your account, not a fixed scan model, and isn't billed separately at all — it draws from your Claude Code plan's usage limits instead, so a fixed rate card doesn't apply to it. See [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md) for the full managed-vs-plugin breakdown.
+> ✅ **Rate card verified 2026-09-03** against [Anthropic's pricing page](https://platform.claude.com/docs/en/about-claude/pricing) (model-pricing, prompt-caching, and batch tables). The schema is now **loaded at runtime** — editing it changes what the CLI prints; there is no hardcoded rate card in the code.
+>
+> The estimator targets the **managed** Claude Security product, which runs on a Project Glasswing Mythos model and is charged at direct token cost. Five models are carried, because the choice materially changes the bill:
+>
+> | Model | Input | Output | Cache read | 1h cache write |
+> |---|---|---|---|---|
+> | `claude-mythos-5` | $10 | $50 | **$1.00** | $20 |
+> | `claude-mythos-5-1` | $10 | $50 | **$0.25** | $20 |
+> | `claude-fable-5` | $10 | $50 | $1.00 | $20 |
+> | `claude-fable-5-1` | $10 | $50 | $0.25 | $20 |
+> | `claude-opus-5` | $5 | $25 | $0.50 | $10 |
+>
+> ⚠️ **Cache reads are `0.1x` base input on every model except Claude Fable 5.1 and Claude Mythos 5.1, which are `0.025x`** — $0.25/MTok rather than $1.00/MTok. On a cache-read-heavy scan that 4x difference is the single largest lever in the whole model: a `deep_exploit_hunt` on a 500k-LOC repo costs **$481.88 on `claude-mythos-5` vs $350.62 on `claude-mythos-5-1` (−27%)**, from the model choice alone.
+>
+> The Mythos models are Project Glasswing limited-availability; `claude-fable-5-1` is the generally-available equivalent at identical pricing. The separate **Claude Security plugin for Claude Code** isn't billed against any of these — it draws from your Claude Code plan's usage limits. See [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md).
 
 ## Executable Estimator
 
-Reference implementation: [`scripts/estimate_claude_security_cost.py`](../scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc, profile, model, is_batch)`, returns estimated total USD plus a cost and token-volume breakdown. Rather than guessing `loc`, feed it a real count from [`scripts/index_repo.py`](../scripts/index_repo.py), or run the two chained via [`scripts/prerun_estimate.py`](../scripts/prerun_estimate.py) for a one-shot table across all three profiles — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md).
+Reference implementation: [`scripts/estimate_claude_security_cost.py`](../scripts/estimate_claude_security_cost.py) — `estimate_claude_security_cost(loc=..., code_tokens=..., profile, model, is_batch, complexity_multiplier)` — pass `code_tokens` from a measured/exact source in preference to `loc`, returns estimated total USD plus a cost and token-volume breakdown. Rather than guessing `loc`, feed it a real count from [`scripts/index_repo.py`](../scripts/index_repo.py), or run the two chained via [`scripts/prerun_estimate.py`](../scripts/prerun_estimate.py) for a one-shot table across all three profiles — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md).
 
 ## Guardrails to Implement Before a Scan Runs
 
 - **Hard-cap budget gating**: intercept jobs where `estimated_total_usd > budget_threshold` before triggering the scan — `prerun_estimate.py --budget-usd N` implements this as a ✅/❌ flag per profile.
 - **Directory scoping**: if `loc > 500,000`, prompt for scoping to a sub-folder (e.g. `/services/auth/`) rather than scanning the whole repo root — `prerun_estimate.py` warns and names the largest top-level directory once this threshold is crossed.
-- **Batch routing**: route full-repository scheduled/scanning audits through a batch API automatically via CI/CD to guarantee the batch discount on non-cached token volume.
+- ~~**Batch routing**~~ — **retracted.** This guardrail was wrong. Anthropic's pricing docs state the Batch API discount does **not** apply to stateful, interactive agent sessions: *"Sessions are stateful and interactive. There is no batch mode."* An agentic security scan is a sequential tool-use loop and cannot be batched. `--batch` is retained for hypothetical modeling only and prints a warning when used; do not budget against its output.
 
 ---
 
@@ -66,6 +80,9 @@ Reference implementation: [`scripts/estimate_claude_security_cost.py`](../script
 
 These are deliberately unresolved — the model above is generic until they're answered:
 
-1. **Language/stack-specific token-per-LOC factor.** The flat `LOC × 12.5` density is a blended default; it should be tuned per primary language/stack (e.g. dense languages like JSON/config vs. terse ones like Python vs. verbose ones like Java/XML skew this materially). Codebase-*complexity* weighting (as opposed to per-language density) now has an optional, draft answer: `--indexer graphify` in [`prerun_estimate.py`](../scripts/prerun_estimate.py) reads an already-built graphify graph's edge-to-node ratio and applies a bounded multiplier to the agentic-traversal cost terms — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md#alternate-indexers). Still flagged unverified/to-be-tuned, in particular the `BASELINE_RATIO` constant.
+1. **Language/stack-specific token-per-LOC factor — now avoidable.** The flat `LOC × 12.5` density is a blended default. Two developments since it was written:
+   - **It can be sidestepped entirely.** `--token-source count-tokens` measures the real payload with Anthropic's own tokenizer (free endpoint), and `--token-source repomix|gitingest` measures the packed payload offline. The heuristic is now the *default*, not the only option — see [LOCAL_PRESCAN_INDEXING.md](LOCAL_PRESCAN_INDEXING.md#token-sources-how-the-payload-gets-counted).
+   - **It is probably ~30% low.** Anthropic's docs state that Claude 4.7-and-later models — every model in this rate card — use a tokenizer producing roughly **30% more tokens for the same text** than the Sonnet 4.6-era tokenizer. A factor carried over from an older model understates by about that much.
+   Codebase-*complexity* weighting (as opposed to per-language density) has a separate optional answer via `--indexer graphify`, still flagged unverified — in particular the `BASELINE_RATIO` constant.
 2. **Target integration surface — partially resolved.** Confirmed: Claude Security ships as *both* a hosted Enterprise product (no CLI/API access documented) and a Claude Code plugin (`/claude-security`, installed via `/plugin install claude-security@claude-plugins-official`) that runs inside a session and counts against the plan's usage limits rather than being billed separately. This repo's tooling targets the plugin path — see [CLAUDE_SECURITY_USAGE.md](CLAUDE_SECURITY_USAGE.md). Still open: whether a hard-cap gate should live in a Claude Code command/hook (blocking before `/claude-security` runs) versus a CI gate for a hypothetical future non-interactive invocation — no such CI/Actions surface is documented today.
 3. **Preferred data format for the tool itself.** Whether the drop-in integration should be a Python class, an MCP server tool definition, or a Terraform module (for infra-as-code budget policy) is still open.

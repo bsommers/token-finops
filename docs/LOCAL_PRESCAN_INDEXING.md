@@ -75,6 +75,42 @@ Complexity: edge/node ratio 2.10 (from graphify-out/graph.json, 100 nodes / 210 
 
 The `BASELINE_RATIO` constant (`1.5`) and the clamp bounds are draft defaults, unverified against a real scan — same honesty bar as the LOC-density factor below.
 
+## Token sources: how the payload gets counted
+
+`--indexer` decides how the repo's *structure* is measured. `--token-source` decides how its *token count* is arrived at — the number that actually drives the bill. Four options, in increasing order of accuracy and decreasing order of convenience:
+
+| `--token-source` | Offline? | Accuracy | Needs |
+|---|---|---|---|
+| `loc` (default) | ✅ fully | heuristic — `LOC × 12.5` | nothing |
+| `repomix` | code stays local¹ | measured payload size | `npx` / repomix |
+| `gitingest` | code stays local¹ | measured payload size | gitingest |
+| `count-tokens` | ❌ **sends your source to Anthropic** | **exact** | `anthropic` package + credentials |
+
+¹ Neither packer transmits your code, but `npx -y repomix` does download the package on first use. Only `count-tokens` sends source code off the machine.
+
+**Why the packers' own token counts are ignored.** Repomix and Gitingest both report a token estimate computed with **tiktoken, OpenAI's tokenizer**. That number is wrong for Claude — tiktoken undercounts Claude tokens by roughly 15–20% on prose and by more on code. This repo therefore uses those tools only as *packers* and derives the count itself from the packed payload, using Anthropic's published figure for the current tokenizer (**1M tokens ≈ 2.5M Unicode characters**). If you see a token count in repomix's own summary, do not budget against it.
+
+**Why `loc` is still the default.** It needs nothing installed, makes no network call of any kind, and keeps the guarantee at the top of this document intact. It is a heuristic and is labelled as one in the output.
+
+**The exact path.** `--token-source count-tokens` sends the packed source to Anthropic's `messages.count_tokens` endpoint, which is free to call and uses the real tokenizer for the model you name. It is the ground truth for both cost and context-window fit:
+
+```bash
+python3 scripts/prerun_estimate.py --token-source count-tokens --model claude-mythos-5-1
+```
+
+This **breaks the offline guarantee** — it is opt-in for exactly that reason, it prints a warning when it runs, and it never happens unless you ask for it. If you can't reach the model you're estimating (Mythos is Project Glasswing-limited), count with one you can: every model in the rate card shares the current tokenizer, so the count is identical.
+
+```bash
+python3 scripts/prerun_estimate.py --token-source count-tokens \
+  --model claude-mythos-5-1 --count-tokens-model claude-opus-5
+```
+
+### Recommended workflow
+
+1. Start with the default (`loc`) for a free, instant, offline ballpark.
+2. If the number is near a budget boundary, re-run with `--token-source count-tokens` for the exact figure — the endpoint is free, so the only cost is the network round-trip and the privacy trade-off.
+3. Gate on it: `--profile deep_exploit_hunt --budget-usd 250` exits **2** if that profile breaches the budget, so this can front a CI job or a pre-scan hook.
+
 ## Open questions / future work
 
 - **Per-language token density.** `index_repo.py` already buckets LOC by extension — that's the natural place to apply a per-language `tokens/LOC` factor once [SECURITY_SCAN_ESTIMATOR.md](SECURITY_SCAN_ESTIMATOR.md)'s open question #1 is resolved, instead of the current flat `× 12.5` blended default across every extension.

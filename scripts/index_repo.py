@@ -106,6 +106,7 @@ def index_repo(root: Path, scope: str | None, extra_excludes: list[str]) -> dict
     by_extension = defaultdict(lambda: {"files": 0, "loc": 0})
     by_top_dir = defaultdict(lambda: {"files": 0, "loc": 0})
     largest_files = []
+    all_files = []
 
     for rel in rel_files:
         if _is_excluded(rel, extra_excludes):
@@ -129,6 +130,7 @@ def index_repo(root: Path, scope: str | None, extra_excludes: list[str]) -> dict
         by_top_dir[top_dir]["files"] += 1
         by_top_dir[top_dir]["loc"] += loc
         largest_files.append((loc, rel))
+        all_files.append(rel)
 
     largest_files.sort(reverse=True)
     return {
@@ -141,6 +143,7 @@ def index_repo(root: Path, scope: str | None, extra_excludes: list[str]) -> dict
         "by_extension": dict(sorted(by_extension.items(), key=lambda kv: -kv[1]["loc"])),
         "by_top_dir": dict(sorted(by_top_dir.items(), key=lambda kv: -kv[1]["loc"])),
         "largest_files": [{"loc": loc, "path": path} for loc, path in largest_files[:20]],
+        "all_files": all_files,
         "source": "loc",
         "complexity": None,
     }
@@ -152,11 +155,16 @@ def main() -> None:
     parser.add_argument("--scope", default=None, help="restrict indexing to this subdirectory")
     parser.add_argument("--exclude", action="append", default=[], help="extra glob to exclude (repeatable)")
     parser.add_argument("--top", type=int, default=20, help="how many largest files to report")
+    parser.add_argument("--all-files", action="store_true", help="include the full indexed file list in the JSON")
     parser.add_argument("--out", default=None, help="write JSON here instead of stdout")
     args = parser.parse_args()
 
     result = index_repo(Path(args.root), args.scope, args.exclude)
     result["largest_files"] = result["largest_files"][: args.top]
+    if not args.all_files:
+        # Internal detail for token_sources.build_payload; omitted by default so
+        # the CLI's JSON stays readable on large repos.
+        result.pop("all_files", None)
     output = json.dumps(result, indent=2)
 
     if args.out:

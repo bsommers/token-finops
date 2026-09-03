@@ -4,7 +4,7 @@
 
 **Value proposition, in one line:** this repo puts a real number on token spend *before* you commit to it — a token budget forecast before a coding task starts (`/token-ops`), and a **dollar-figure cost estimate before a Claude Security scan runs** (the draft pre-flight estimator below). Both exist because Claude Code and Claude Security only tell you cost *after* the fact, or in vague terms ("relative cost") *before* it — never a number you can budget against ahead of time.
 
-**The specific pre-flight value-add**: the Claude Security plugin's own scoping step tells you a scan's cost only qualitatively — "the plugin reads your repository first, then offers the whole repository or a focused area, with each option's file count and *relative* cost stated." No dollar figure, no token count. This repo's `prerun_estimate.py` closes that gap — indexing your repo locally (offline, no network calls) and turning that vague signal into an actual table:
+**The specific pre-flight value-add**: the Claude Security plugin's own scoping step tells you a scan's cost only qualitatively — "the plugin reads your repository first, then offers the whole repository or a focused area, with each option's file count and *relative* cost stated." No dollar figure, no token count. This repo's `prerun_estimate.py` closes that gap — indexing your repo locally (offline and network-free by default) and turning that vague signal into an actual table:
 
 ```
 | Profile               | Est. cost (USD) |
@@ -16,7 +16,17 @@
 
 That's the difference between "this scan is probably cheap" and knowing, before you confirm the run, that a `deep_exploit_hunt`-depth scan on this repo is a $229 decision, not a $2 one, on the Mythos-5-backed Enterprise product's own confirmed rate card — see [CLAUDE_SECURITY_USAGE.md](docs/CLAUDE_SECURITY_USAGE.md).
 
-The LOC-only estimate above is the zero-setup default; if you already have a graphify knowledge graph built for this repo (the `/graphify` skill's output), `--indexer graphify` adds a structural-complexity multiplier (edge-to-node ratio) on top of it — see [LOCAL_PRESCAN_INDEXING.md](docs/LOCAL_PRESCAN_INDEXING.md#alternate-indexers).
+That estimate is offline and zero-setup by default, and it can be made progressively more accurate:
+
+| Want | Flag | Trade-off |
+|---|---|---|
+| A free, instant, fully offline ballpark | *(default)* | `LOC × 12.5` heuristic |
+| Structural-complexity weighting | `--indexer graphify` | needs a graph you already built |
+| A measured payload without leaving your machine | `--token-source repomix\|gitingest` | needs the packer installed |
+| **The exact count, from Anthropic's own tokenizer** | `--token-source count-tokens` | **sends your source to the API** |
+| A CI gate, not a report | `--profile P --budget-usd N` | exits 2 on breach |
+
+`count_tokens` is free to call and is ground truth for both cost and context-window fit — but it is the one option that breaks the offline guarantee, so it is strictly opt-in and warns when it runs. See [LOCAL_PRESCAN_INDEXING.md](docs/LOCAL_PRESCAN_INDEXING.md#token-sources-how-the-payload-gets-counted).
 
 **➡️ [Run a pre-flight scan estimate for the Claude Security Enterprise service](docs/RUN_ENTERPRISE_PREFLIGHT.md)** — the step-by-step walkthrough for getting the dollar figure above against your own repo before a real `claude.ai/security` scan.
 
@@ -90,6 +100,8 @@ token-finops/
 │   ├── estimate_claude_security_cost.py         — reference estimator implementation (draft)
 │   ├── index_repo.py                            — local, offline LOC/file indexer (draft, default)
 │   ├── graphify_indexer.py                      — opt-in alternate: adds a graphify-graph complexity signal (draft)
+│   ├── token_sources.py                         — token counting: loc / repomix / gitingest / exact count_tokens
+│   ├── rate_cards.py                            — loads the rate-card schema (single source of truth)
 │   └── prerun_estimate.py                       — CLI: index + estimate in one pass (draft)
 ├── docs/
 │   ├── ARCHITECTURE.md              — protocol design, state model, diagrams
@@ -110,7 +122,7 @@ token-finops/
 
 ## Configuration
 
-None for `/token-ops` — it takes its only input as free-text arguments after `/token-ops` (the task description) and asks for one if it's omitted. The draft estimator's config is the rate card and scan-profile definitions in [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json) — the rate card (Claude Mythos 5, the fixed model behind the managed Claude Security Enterprise product) is confirmed against Anthropic's published pricing; the scan-depth step-count multipliers are still unverified defaults — see [docs/SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md).
+None for `/token-ops` — it takes its only input as free-text arguments after `/token-ops` (the task description) and asks for one if it's omitted. The draft estimator's config is the rate card and scan-profile definitions in [`schemas/claude_security_pre_run_estimator.json`](schemas/claude_security_pre_run_estimator.json). That file is **loaded at runtime** — editing it changes the numbers the CLI prints. Rates for all five carried models were verified against Anthropic's published pricing on 2026-09-03, and the CLI warns when the card goes stale; the scan-depth step-count multipliers and the tokens-per-LOC factor are still unverified defaults — see [docs/SECURITY_SCAN_ESTIMATOR.md](docs/SECURITY_SCAN_ESTIMATOR.md).
 
 ---
 
@@ -120,7 +132,7 @@ There's no build step or test suite — `/token-ops` is validated by using it in
 
 ```bash
 # Sanity-check the estimator scripts parse and run
-python3 -c "import ast; [ast.parse(open(f).read(), f) for f in ['scripts/index_repo.py', 'scripts/graphify_indexer.py', 'scripts/prerun_estimate.py', 'scripts/estimate_claude_security_cost.py']]"
+python3 -c "import ast; [ast.parse(open(f).read(), f) for f in ['scripts/index_repo.py', 'scripts/graphify_indexer.py', 'scripts/token_sources.py', 'scripts/rate_cards.py', 'scripts/prerun_estimate.py', 'scripts/estimate_claude_security_cost.py']]"
 python3 scripts/prerun_estimate.py --budget-usd 10
 ```
 

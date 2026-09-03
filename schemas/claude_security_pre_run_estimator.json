@@ -1,15 +1,77 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "claude_security_pre_run_estimator",
-  "version": "2.0.0",
-  "rate_card_source": "https://platform.claude.com/docs/en/about-claude/pricing — 'Claude Mythos 5' row, confirmed against platform.claude.com/docs and claude.com/product/claude-security as the fixed model behind the managed, Enterprise-only Claude Security product (claude.ai/security), billed at direct token cost. Retrieved 2026-09-02.",
+  "version": "3.0.0",
+  "rate_card_source": "https://platform.claude.com/docs/en/about-claude/pricing — model-pricing, prompt-caching-multiplier, and batch-processing tables. Verified 2026-09-03.",
+  "rate_card_retrieved": "2026-09-03",
+  "rate_card_stale_after_days": 90,
+  "notes": {
+    "loaded_at_runtime": "scripts/rate_cards.py loads this file; the estimator has no hardcoded rate card. Editing values here changes the numbers the CLI prints.",
+    "cache_read_multiplier": "Cache reads are 0.1x base input on every model EXCEPT Claude Fable 5.1 and Claude Mythos 5.1, which are 0.025x ($0.25/MTok). This is a 4x difference on the cache-read term and is the single largest rate difference between the Mythos 5 and Mythos 5.1 generations.",
+    "tokenizer": "Claude 4.7 and later (which includes every model below) use a tokenizer that produces ~30% more tokens for the same text than the Claude Sonnet 4.6-and-earlier tokenizer. Any tokens-per-LOC factor derived from an older model is therefore ~30% low for these models.",
+    "long_context": "The full 1M-token context window is billed at standard rates — there is no long-context surcharge to model.",
+    "batch_not_applicable": "The Batch API is asynchronous and has no interactive tool-use loop. Anthropic's own docs state the batch discount does not apply to stateful, interactive agent sessions. Batch rates are recorded here for completeness but should not be applied to an agentic scan estimate."
+  },
   "rate_cards": {
     "claude-mythos-5": {
+      "display_name": "Claude Mythos 5",
+      "access": "limited availability (Project Glasswing)",
+      "context_window": 1000000,
       "base_input_per_m": 10.00,
       "output_per_m": 50.00,
       "cache_read_per_m": 1.00,
+      "cache_write_5m_per_m": 12.50,
       "cache_write_1h_per_m": 20.00,
-      "batch_discount": 0.50
+      "batch_input_per_m": 5.00,
+      "batch_output_per_m": 25.00
+    },
+    "claude-mythos-5-1": {
+      "display_name": "Claude Mythos 5.1",
+      "access": "limited availability (Project Glasswing)",
+      "context_window": 1000000,
+      "base_input_per_m": 10.00,
+      "output_per_m": 50.00,
+      "cache_read_per_m": 0.25,
+      "cache_write_5m_per_m": 12.50,
+      "cache_write_1h_per_m": 20.00,
+      "batch_input_per_m": 5.00,
+      "batch_output_per_m": 25.00
+    },
+    "claude-fable-5": {
+      "display_name": "Claude Fable 5",
+      "access": "general availability",
+      "context_window": 1000000,
+      "base_input_per_m": 10.00,
+      "output_per_m": 50.00,
+      "cache_read_per_m": 1.00,
+      "cache_write_5m_per_m": 12.50,
+      "cache_write_1h_per_m": 20.00,
+      "batch_input_per_m": 5.00,
+      "batch_output_per_m": 25.00
+    },
+    "claude-fable-5-1": {
+      "display_name": "Claude Fable 5.1",
+      "access": "general availability",
+      "context_window": 1000000,
+      "base_input_per_m": 10.00,
+      "output_per_m": 50.00,
+      "cache_read_per_m": 0.25,
+      "cache_write_5m_per_m": 12.50,
+      "cache_write_1h_per_m": 20.00,
+      "batch_input_per_m": 5.00,
+      "batch_output_per_m": 25.00
+    },
+    "claude-opus-5": {
+      "display_name": "Claude Opus 5",
+      "access": "general availability",
+      "context_window": 1000000,
+      "base_input_per_m": 5.00,
+      "output_per_m": 25.00,
+      "cache_read_per_m": 0.50,
+      "cache_write_5m_per_m": 6.25,
+      "cache_write_1h_per_m": 10.00,
+      "batch_input_per_m": 2.50,
+      "batch_output_per_m": 12.50
     }
   },
   "scan_profiles": {
@@ -31,5 +93,10 @@
       "tool_input_per_step": 25000,
       "output_per_step": 4000
     }
+  },
+  "token_density": {
+    "loc_heuristic_tokens_per_loc": 12.5,
+    "overhead_factor": 0.15,
+    "status": "UNVERIFIED draft default. Prefer --token-source count-tokens (exact) or repomix/gitingest (measured) over this heuristic. See notes.tokenizer."
   }
 }
